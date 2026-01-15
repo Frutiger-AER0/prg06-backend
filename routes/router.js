@@ -10,13 +10,28 @@ router.use((req, res, next) => {
     if (req.headers.accept && req.headers.accept === "application/json") {
         next();
     } else {
-        res.status(406).json({ error: "Webservice only supports json." });
+        if (req.method === "OPTIONS") {
+            next();
+        } else {
+            res.status(406).json({error: "Webservice only supports json."});
+        }
     }
 });
 
 router.get("/", async (req, res) => {
-    const notes = await Note.find({});
-    res.json(notes)
+    res.header("Access-Control-Allow-Origin", "*");
+    const notes = await Note.find({}, '-body');
+    res.json({
+        items: notes,
+        _links: {
+            self: {
+                href: `${process.env.BASE_URI}`,
+            },
+            collection: {
+                href: `${process.env.BASE_URI}`,
+            }
+        },
+    });
 })
 
 router.post("/seed",  async (req, res) => {
@@ -34,6 +49,13 @@ router.post("/seed",  async (req, res) => {
     }
     res.json(notes);
 });
+
+router.options("/", (req, res) => {
+    res.header("Allow", "GET, POST, OPTIONS");
+    res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Accept");
+    res.status(204).send();
+})
 
 router.post("/", async (req, res) => {
     const { title, body, author } = req.body;
@@ -77,13 +99,14 @@ router.delete("/:id", async (req, res) => {
         if (!result) {
             return res.status(404).json({ error: "Note not found" });
         }
-        res.json({ message: "Note deleted" });
+        res.status(204).json({ message: "Note deleted" });
     } catch (error) {
         res.status(500).json({ error: "Server error" });
     }
 })
 
 router.get("/:id", async (req, res) => {
+    res.header("Access-Control-Allow-Origin", "*");
     const noteId = req.params.id;
     try {
         const note = await Note.findById(noteId);
@@ -94,6 +117,13 @@ router.get("/:id", async (req, res) => {
     } catch (error) {
         res.status(500).json({ error: "Server error" });
     }
+})
+
+router.options("/:id", (req, res) => {
+    res.header("Allow", "GET, PUT, DELETE, OPTIONS");
+    res.header("Access-Control-Allow-Methods", "GET, PUT, DELETE, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Accept");
+    res.status(204).send();
 })
 
 export default router;
